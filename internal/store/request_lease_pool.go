@@ -6,6 +6,10 @@ import (
 	"reverseproxy/internal/model"
 )
 
+// RequestLeasePool 是 RequestLease 的对象池。
+// 借出的对象会跨请求复用，因此 Acquire 时会清空自身状态，
+// 调用方仍需保证：异步读取必须在归还前取好快照，不能持有
+// 借出的 *RequestLease 在归还后继续访问。
 type RequestLeasePool struct {
 	mu   sync.Mutex
 	free []*model.RequestLease
@@ -22,6 +26,7 @@ func (p *RequestLeasePool) Acquire() *model.RequestLease {
 	last := len(p.free) - 1
 	lease := p.free[last]
 	p.free = p.free[:last]
+	lease.Reset()
 	return lease
 }
 
